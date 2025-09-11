@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  pdf-generator:
+    build: .
+    ports:
+      - "8500:8500"
+    volumes:
+      - ./pdfs_generados:/app/pdfs_generados
+      - ./cache:/app/cache
+      - ./.env:/app/.env
+    environment:
+      - DISPLAY=:99
+      - CHROME_BIN=/usr/bin/google-chrome
+      - CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8500/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
