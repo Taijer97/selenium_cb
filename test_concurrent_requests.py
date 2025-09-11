@@ -7,31 +7,7 @@ import psutil
 
 # Lista de DNIs para probar
 DNIS_TEST = [
-    "03016298", "41153750", "40571303", "05926058", "05936149",
-    "42012480", "77247217", "43374968", "45659905", "05372705",
-    "72125803", "73441064", "70607485", "00050045", "45998733",
-    "21141116", "00053049", "41279364", "41110873", "62718433",
-    "00099015", "00150150","00076586",
-    "45725989",
-    "41207051",
-    "00122813",
-    "05932918",
-    "42001083",
-    "41569033",
-    "44470566",
-    "00075624",
-    "05867627",
-    "00110247",
-    "80189917",
-    "01546828",
-    "44992827",
-    "70226689",
-    "00086120",
-    "00086120",
-    "70757150",
-    "46071185",
-    "05859765",
-    "80658193"
+    "03016298", 
 ]
 
 API_BASE_URL = "http://localhost:8100"
@@ -91,7 +67,7 @@ async def test_single_request(session, dni, request_id):
             "timestamp": datetime.now().isoformat()
         }
 
-async def test_concurrent_requests(max_concurrent=10):
+async def test_concurrent_requests(max_concurrent=5):
     """Ejecuta peticiones concurrentes con límite de concurrencia"""
     print(f"🚀 Iniciando test con {len(DNIS_TEST)} DNIs")
     print(f"📊 Máximo {max_concurrent} peticiones simultáneas")

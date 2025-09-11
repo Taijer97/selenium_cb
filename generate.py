@@ -63,6 +63,140 @@ def buscar_elemento_creditos_directo(driver, texto_buscar="Créditos"):
     
     return None
 
+def buscar_input_busqueda_robusto(driver, placeholder_texto="N° CONTRATO / DNI / NOMBRE"):
+    """
+    Busca el input de búsqueda de forma robusta usando múltiples estrategias
+    ya que el ID es mutable y el XPath no es confiable
+    """
+    try:
+        print("Buscando input de búsqueda...")
+        
+        # Estrategia 1: Buscar por placeholder específico
+        try:
+            elemento = driver.find_element(By.CSS_SELECTOR, f"input[placeholder*='CONTRATO'][placeholder*='DNI'][placeholder*='NOMBRE']")
+            if elemento.is_displayed() and elemento.is_enabled():
+                print(f"Input encontrado por placeholder: {elemento.get_attribute('placeholder')}")
+                return elemento
+        except:
+            pass
+        
+        # Estrategia 2: Buscar por clase CSS específica
+        try:
+            elementos = driver.find_elements(By.CSS_SELECTOR, "input.x-form-field.x-form-text")
+            for elemento in elementos:
+                if elemento.is_displayed() and elemento.is_enabled():
+                    placeholder = elemento.get_attribute('placeholder') or ''
+                    if 'CONTRATO' in placeholder.upper() or 'DNI' in placeholder.upper():
+                        print(f"Input encontrado por clase CSS: {placeholder}")
+                        return elemento
+        except:
+            pass
+        
+        # Estrategia 3: Buscar por atributos de rol y tipo
+        try:
+            elementos = driver.find_elements(By.CSS_SELECTOR, "input[type='text'][role='textbox']")
+            for elemento in elementos:
+                if elemento.is_displayed() and elemento.is_enabled():
+                    placeholder = elemento.get_attribute('placeholder') or ''
+                    name = elemento.get_attribute('name') or ''
+                    if ('search' in name.lower() or 'buscar' in name.lower() or 
+                        'CONTRATO' in placeholder.upper() or 'DNI' in placeholder.upper()):
+                        print(f"Input encontrado por rol/tipo: {placeholder}")
+                        return elemento
+        except:
+            pass
+        
+        # Estrategia 4: Buscar en estructura de tabla (más específico)
+        try:
+            # Buscar inputs dentro de tablas que contengan el texto esperado
+            tabla_inputs = driver.find_elements(By.CSS_SELECTOR, "table input[type='text']")
+            for elemento in tabla_inputs:
+                if elemento.is_displayed() and elemento.is_enabled():
+                    placeholder = elemento.get_attribute('placeholder') or ''
+                    if 'DNI' in placeholder.upper() or 'CONTRATO' in placeholder.upper():
+                        print(f"Input encontrado en tabla: {placeholder}")
+                        return elemento
+        except:
+            pass
+        
+        # Estrategia 5: Buscar por ID que contenga 'search' o 'input'
+        try:
+            elementos = driver.find_elements(By.CSS_SELECTOR, "input[id*='search'], input[id*='input'], input[id*='field']")
+            for elemento in elementos:
+                if elemento.is_displayed() and elemento.is_enabled():
+                    placeholder = elemento.get_attribute('placeholder') or ''
+                    if placeholder and ('DNI' in placeholder.upper() or 'CONTRATO' in placeholder.upper()):
+                        print(f"Input encontrado por ID pattern: {elemento.get_attribute('id')}")
+                        return elemento
+        except:
+            pass
+        
+        # Estrategia 6: Buscar el primer input visible de texto en la página
+        try:
+            elementos = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
+            for elemento in elementos:
+                if elemento.is_displayed() and elemento.is_enabled():
+                    # Verificar si está en una posición prominente (arriba en la página)
+                    location = elemento.location
+                    if location['y'] < 500:  # Está en la parte superior
+                        placeholder = elemento.get_attribute('placeholder') or ''
+                        print(f"Input encontrado como primer campo visible: {placeholder}")
+                        return elemento
+        except:
+            pass
+        
+        # Estrategia 7: Debugging - mostrar todos los inputs disponibles
+        print("=== DEBUGGING: Inputs disponibles ===")
+        try:
+            all_inputs = driver.find_elements(By.CSS_SELECTOR, "input")
+            for i, inp in enumerate(all_inputs[:10]):  # Mostrar solo los primeros 10
+                if inp.is_displayed():
+                    print(f"{i}: ID={inp.get_attribute('id')}, Type={inp.get_attribute('type')}, Placeholder={inp.get_attribute('placeholder')}, Name={inp.get_attribute('name')}")
+        except:
+            pass
+            
+    except Exception as e:
+        print(f"Error buscando input: {e}")
+    
+    return None
+
+def buscar_y_llenar_input_dni(driver, user_dni):
+    """
+    Función completa para buscar y llenar el campo de DNI
+    """
+    try:
+        # Buscar el input usando la función robusta
+        input_element = buscar_input_busqueda_robusto(driver)
+        
+        if not input_element:
+            # Capturar screenshot para debugging
+            driver.save_screenshot("input_not_found_debug.png")
+            return {"error": "No se pudo encontrar el campo de búsqueda. Screenshot guardado para debugging."}
+        
+        # Limpiar el campo antes de escribir
+        input_element.clear()
+        
+        # Enviar el DNI
+        input_element.send_keys(str(user_dni))
+        
+        # Opcional: presionar Enter o buscar botón de búsqueda
+        try:
+            # Buscar botón de búsqueda cercano
+            parent = input_element.find_element(By.XPATH, "./..")
+            search_button = parent.find_element(By.CSS_SELECTOR, "button, input[type='submit'], *[class*='search'], *[class*='buscar']")
+            search_button.click()
+        except:
+            # Si no encuentra botón, presionar Enter
+            from selenium.webdriver.common.keys import Keys
+            input_element.send_keys(Keys.RETURN)
+        
+        print(f"DNI {user_dni} ingresado correctamente")
+        return {"success": True, "element_id": input_element.get_attribute('id')}
+        
+    except Exception as e:
+        driver.save_screenshot("input_error_debug.png")
+        return {"error": f"Error al llenar el campo de DNI: {str(e)}"}
+
 async def selenium_dni_async(user_dni):
     """Función asíncrona que usa Selenium para extraer datos del DNI"""
     
@@ -110,7 +244,7 @@ async def selenium_dni_async(user_dni):
     def _selenium_sync_operation(user_dni):
         """Operación síncrona de Selenium que se ejecutará en un hilo separado"""
         chrome_options = Options()
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
@@ -132,16 +266,21 @@ async def selenium_dni_async(user_dni):
             elemento_creditos = buscar_elemento_creditos_directo(driver, "Créditos")
             if elemento_creditos:
                 elemento_creditos.click()
-                time.sleep(1)
+                time.sleep(2)
             else:
                 print("No se encontró el elemento Créditos")
-
-            time.sleep(1)  
-            elemento = driver.find_element(By.XPATH, "/html/body/div[1]/div[2]/div[2]/div[2]/div[2]/div/div/table/tbody/tr/td[2]/table/tbody/tr/td[1]/input")
-            id_elemento = elemento.get_attribute("id")
+                return {"error": "No se pudo acceder a la sección de Créditos"}
             
-            driver.find_element(By.XPATH, f"//input[@id='{id_elemento}']").send_keys(f"{user_dni}")
+            # Esperar a que cargue la nueva página
+            time.sleep(3)
+            
+            # Usar la nueva función robusta para buscar y llenar el DNI
+            resultado_input = buscar_y_llenar_input_dni(driver, user_dni)
+            if not resultado_input.get("success"):
+                return resultado_input
+            
             time.sleep(2)
+            
 
             # 🔹 Buscar en la tabla
             filas = driver.find_elements(By.XPATH, "/html/body/div[1]/div[2]/div[2]/div[2]/div[4]/div/table//tr")
