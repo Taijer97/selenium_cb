@@ -140,3 +140,4 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 - Usa HTTPS en producción
 - Revisa regularmente los logs de seguridad
 - Mantén las dependencias actualizadas
+- Seguimiento de la documentación de seguridad
