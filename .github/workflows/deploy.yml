@@ -1,25 +1,22 @@
-name: Deploy to Server
+name: Deploy PDF Generator
 
+# Se ejecuta solo en main
 on:
   push:
     branches:
-      - main     # Solo se ejecuta cuando haces push/merge a main
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted   # <-- Usa el runner auto-hospedado
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 60s
-          port: 22
-          script: |
-            set -e
-            cd /home/coopcb/api_cb/selenium_cb/
-            git fetch --all
-            git reset --hard origin/main
-            docker compose up -d --build pdf-generator
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy project
+        run: |
+          set -e
+          cd /home/coopcb/api_cb/selenium_cb/
+          git fetch --all
+          git reset --hard origin/main
+          docker compose up -d --build pdf-generator
