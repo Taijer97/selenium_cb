@@ -8,12 +8,31 @@ import uvicorn
 from typing import Optional
 from cache_manager import cache_manager
 from fastapi import BackgroundTasks
+from cleanup_scheduler import cleanup_manager
+import atexit
 
 app = FastAPI(
     title="Generador de Reportes PDF",
     description="API para generar reportes PDF de créditos usando DNI",
     version="1.0.0"
 )
+
+# Iniciar limpieza automática al arrancar la aplicación
+@app.on_event("startup")
+async def startup_event():
+    """Eventos de inicio de la aplicación"""
+    cleanup_manager.start_scheduler()
+    print("🚀 Aplicación iniciada con limpieza automática activada")
+
+# Detener limpieza automática al cerrar la aplicación
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Eventos de cierre de la aplicación"""
+    cleanup_manager.stop_scheduler()
+    print("🛑 Aplicación detenida, limpieza automática desactivada")
+
+# También registrar para cierre del proceso
+atexit.register(cleanup_manager.stop_scheduler)
 
 class DNIRequest(BaseModel):
     dni: str
@@ -33,7 +52,8 @@ async def root():
         "endpoints": {
             "/generate-pdf": "POST - Generar PDF por DNI",
             "/download/{filename}": "GET - Descargar PDF generado",
-            "/list-pdfs": "GET - Listar PDFs disponibles"
+            "/list-pdfs": "GET - Listar PDFs disponibles",
+            "/cleanup/status": "GET - Estado de limpieza automática"
         }
     }
 
@@ -143,21 +163,49 @@ async def list_pdfs():
 @app.delete("/cleanup-pdfs")
 async def cleanup_old_pdfs():
     """
-    Limpia PDFs antiguos (más de 1 hora)
+    Limpia PDFs antiguos (más de 1 día) - MANUAL
     """
     try:
-        from pdf_converter import PDFConverter
-        
-        converter = PDFConverter()
-        eliminados = converter.limpiar_pdfs_antiguos(os.path.join("pdfs_generados", "reporte_*.pdf"), minutos=60)
+        eliminados = await cleanup_manager.cleanup_pdfs_folder()
         
         return {
-            "message": f"Limpieza completada. {len(eliminados)} archivos eliminados",
-            "deleted_files": eliminados
+            "message": f"Limpieza completada. {eliminados} archivos eliminados",
+            "deleted_files_count": eliminados
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en limpieza: {str(e)}")
+
+@app.post("/cache/cleanup")
+async def cleanup_cache():
+    """Limpia entradas expiradas del cache - MANUAL"""
+    try:
+        cleaned = await cleanup_manager.cleanup_cache_folder()
+        return {"success": True, "cleaned_entries": cleaned}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/cleanup/full")
+async def full_manual_cleanup():
+    """Ejecuta limpieza completa manual (PDFs + Cache)"""
+    try:
+        result = await cleanup_manager.full_cleanup_task()
+        return {"success": True, "result": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/cleanup/status")
+async def get_cleanup_status():
+    """Obtiene el estado del sistema de limpieza automática"""
+    try:
+        next_cleanup = cleanup_manager.get_next_cleanup_time()
+        return {
+            "auto_cleanup_active": cleanup_manager.is_running,
+            "next_cleanup_time": next_cleanup.isoformat() if next_cleanup else None,
+            "cleanup_schedule": "Diario a las 2:00 AM + cada 6 horas"
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/cache/stats")
 async def get_cache_stats():
@@ -170,12 +218,34 @@ async def get_cache_stats():
 
 @app.post("/cache/cleanup")
 async def cleanup_cache():
-    """Limpia entradas expiradas del cache"""
+    """Limpia entradas expiradas del cache - MANUAL"""
     try:
-        cleaned = await cache_manager.cleanup_expired()
+        cleaned = await cleanup_manager.cleanup_cache_folder()
         return {"success": True, "cleaned_entries": cleaned}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+@app.post("/cleanup/full")
+async def full_manual_cleanup():
+    """Ejecuta limpieza completa manual (PDFs + Cache)"""
+    try:
+        result = await cleanup_manager.full_cleanup_task()
+        return {"success": True, "result": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/cleanup/status")
+async def get_cleanup_status():
+    """Obtiene el estado del sistema de limpieza automática"""
+    try:
+        next_cleanup = cleanup_manager.get_next_cleanup_time()
+        return {
+            "auto_cleanup_active": cleanup_manager.is_running,
+            "next_cleanup_time": next_cleanup.isoformat() if next_cleanup else None,
+            "cleanup_schedule": "Diario a las 2:00 AM + cada 6 horas"
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
