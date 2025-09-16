@@ -139,4 +139,4 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 - Cambia la `SECRET_KEY` en producción
 - Usa HTTPS en producción
 - Revisa regularmente los logs de seguridad
-- Mantén las dependencias actualizadas
+- 16/09/2025 17:55
