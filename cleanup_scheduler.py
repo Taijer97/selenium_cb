@@ -133,7 +133,7 @@ class AutoCleanupManager:
             # Programar limpieza diaria a las 2:00 AM
             self.scheduler.add_job(
                 self.full_cleanup_task,
-                CronTrigger(hour=2, minute=00),  # Todos los días a las 2:00 AM
+                CronTrigger(hour=11, minute=10),  # Todos los días a las 2:00 AM
                 id='daily_cleanup',
                 name='Limpieza Automática Diaria',
                 replace_existing=True
