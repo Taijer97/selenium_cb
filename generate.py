@@ -244,7 +244,7 @@ async def selenium_dni_async(user_dni):
     def _selenium_sync_operation(user_dni):
         """Operación síncrona de Selenium que se ejecutará en un hilo separado"""
         chrome_options = Options()
-        #chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')

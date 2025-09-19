@@ -4,7 +4,7 @@ services:
   pdf-generator:
     build: .
     ports:
-      - "8500:8500"
+      - "8800:8800"
     volumes:
       - ./pdfs_generados:/app/pdfs_generados
       - ./cache:/app/cache
