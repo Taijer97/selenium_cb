@@ -34,30 +34,80 @@ input_s = os.getenv('INPUT_SELECTOR')
 
 def buscar_elemento_creditos_directo(driver, texto_buscar="Créditos"):
     """
-    Busca un elemento específico directamente en Selenium sin archivos intermedios
+    Busca un elemento tipo 'tile' de forma robusta en la página, usando múltiples estrategias
+    para no depender de un ID o XPath fijo.
     """
     try:
-        # Buscar todas las secciones tile-group
-        tile_groups = driver.find_elements(By.CSS_SELECTOR, "div.tile-group.quadro")
+        print(f"Buscando elemento con texto aproximado: '{texto_buscar}'")
         
-        for group in tile_groups:
-            try:
-                # Buscar el título de la sección
-                title = group.find_element(By.CSS_SELECTOR, "span.tile-group-title")
-                if "Creditos" in title.text:
-                    # Buscar el contenedor de tiles
-                    tile_container = group.find_element(By.CSS_SELECTOR, "div.tile-container")
-                    elementos = tile_container.find_elements(By.CSS_SELECTOR, "div[data-role='tile']")
-                    
-                    for elemento in elementos:
-                        try:
-                            label = elemento.find_element(By.CSS_SELECTOR, "span.tile-label")
-                            if texto_buscar.lower() in label.text.lower():
-                                return elemento
-                        except:
-                            continue
-            except:
-                continue
+        # Estrategia 1: Buscar en secciones tile-group con título
+        try:
+            tile_groups = driver.find_elements(By.CSS_SELECTOR, "div.tile-group")
+            for group in tile_groups:
+                if not group.is_displayed():
+                    continue
+                try:
+                    title = group.find_element(By.CSS_SELECTOR, "span.tile-group-title")
+                    if texto_buscar.lower() in title.text.lower():
+                        print(f"Elemento encontrado por sección con título: {title.text}")
+                        return group
+                except:
+                    continue
+        except:
+            pass
+        
+        # Estrategia 2: Buscar por label dentro de tiles
+        try:
+            tiles = driver.find_elements(By.CSS_SELECTOR, "div[data-role='tile']")
+            for tile in tiles:
+                if not tile.is_displayed():
+                    continue
+                try:
+                    label = tile.find_element(By.CSS_SELECTOR, "span.tile-label")
+                    if texto_buscar.lower() in label.text.lower():
+                        print(f"Elemento encontrado por label: {label.text}")
+                        return tile
+                except:
+                    continue
+        except:
+            pass
+        
+        # Estrategia 3: Buscar por atributos ARIA o data-* relacionados
+        try:
+            tiles = driver.find_elements(By.CSS_SELECTOR, "div[role='button'], div[data-name]")
+            for tile in tiles:
+                if not tile.is_displayed():
+                    continue
+                text = tile.text or tile.get_attribute("data-name") or ""
+                if texto_buscar.lower() in text.lower():
+                    print(f"Elemento encontrado por atributo: {text}")
+                    return tile
+        except:
+            pass
+        
+        # Estrategia 4: Buscar primer tile visible con coincidencia parcial de texto
+        try:
+            tiles = driver.find_elements(By.CSS_SELECTOR, "div.tile")
+            for tile in tiles:
+                if not tile.is_displayed():
+                    continue
+                if texto_buscar.lower() in tile.text.lower():
+                    print(f"Elemento encontrado como primer tile visible: {tile.text}")
+                    return tile
+        except:
+            pass
+        
+        # Estrategia 5: Debugging - mostrar los primeros 10 tiles visibles
+        print("=== DEBUGGING: Tiles disponibles ===")
+        try:
+            all_tiles = driver.find_elements(By.CSS_SELECTOR, "div.tile, div[data-role='tile']")
+            for i, t in enumerate(all_tiles[:10]):
+                if t.is_displayed():
+                    label = t.get_attribute('data-name') or ''
+                    print(f"{i}: Text={t.text}, Data-name={label}")
+        except:
+            pass
+
     except Exception as e:
         print(f"Error buscando elemento: {e}")
     
